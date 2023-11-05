@@ -1,0 +1,212 @@
+---
+title: "Computational Statistics Lab 1"
+author: "Simge Cinar & Ronald Yamashita"
+date: "2023-11-01"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+# QUESTION 1:
+
+### Part a)
+```{r}
+# Define the functions
+loglikelihood <- function(x, theta){
+  n <- length(x)
+  y <- c()
+  for (theta_i in theta){
+    result <- -n*log(pi) - sum(log(1+(x-theta_i)^2))
+    y <- c(y, result)
+  }
+  return(y)
+}
+
+loglikelihood_derivative <- function(x, theta){
+  n <- length(x)
+  y <- c()
+  for (theta_i in theta){
+    result <- sum((2*(x-theta_i))/(1+(x-theta_i)^2))
+    y <- c(y, result)
+  }
+  return(y)
+}
+```
+
+Derivative is equal to 0 3 times
+
+```{r}
+# Derivative graph
+x <- c(-2.8, 3.4, 1.2, -0.3, -2.6)
+theta <- seq(-4, 4, by = 0.1)
+y2 <- loglikelihood_derivative(x, theta)
+
+data <- data.frame(theta, y2)
+
+# Create the plot
+plot <- ggplot(data, aes(theta, y2)) +
+  geom_line() +
+  labs(x = "theta", y = "f'(theta)") +
+  ggtitle("Plot of the derivative of the log-likelihood function")
+
+# Add a horizontal red line at y = 0
+plot <- plot + geom_hline(yintercept = 0, color = "red")
+
+# Find the intersection points by looking for changes in sign of y2
+intersection_points <- data.frame()
+for (i in 2:length(y2)) {
+  if (sign(y2[i]) != sign(y2[i - 1])) {
+    x_intersection <- theta[i - 1] - (y2[i - 1] / (y2[i] - y2[i - 1])) * 0.1
+    intersection_points <- rbind(intersection_points, data.frame(theta = x_intersection, y2 = 0))
+  }
+}
+plot <- plot + geom_point(data = intersection_points, aes(x = theta, y = y2), color = "red", size = 3)
+plot <- plot + geom_text(data = intersection_points, aes(x = theta, y = 0, label = round(theta, 2)), vjust = -0.5, color = "blue")
+
+plot
+```
+
+```{r}
+x <- c(-2.8, 3.4, 1.2, -0.3, -2.6)
+theta <- seq(-4, 4, by = 0.1)
+y1 <- loglikelihood(x,theta)
+
+data <- data.frame(theta, y1)
+plot <- ggplot(data, aes(theta, y1)) +
+  geom_line() +
+  labs(x = "theta", y = "f(theta)") +
+  ggtitle("Plot of loglikelihood function")
+
+
+y3 <- loglikelihood(x, intersection_points$theta)
+plot <- plot + geom_point(data = intersection_points, aes(x = theta, y = y3), color = "red", size = 3)
+plot <- plot + geom_text(data = intersection_points, aes(x = theta, y = y3, label = round(theta, 2)), vjust = -0.5, color = "blue")
+plot
+```
+### Part b,c)
+```{r}
+# Define function for the secant method
+secant <- function(t0, t1, epsilon, max_iter){
+  iter <- 0
+  while (iter <= max_iter){
+    d_t1 <- loglikelihood_derivative(x, t1)
+    d_t0 <- loglikelihood_derivative(x, t0)
+    t2 <- t1 - (d_t1*((t1 - t0)/(d_t1 - d_t0)))
+    if (abs(t2 - t1) < epsilon){
+      cat("Iteration:", iter, "\n")
+      return(t2)
+    }
+    t0 <- t1
+    t1 <- t2
+    iter <- iter + 1
+  }
+  stop("Secant method did not converge within the specified number of iterations.")
+}
+```
+
+```{r}
+# Since the global maximum in the range [-4,4] is -0.3, I choose -1 and 0 as the starting values
+t0 <- -0.3
+t1 <- -0.2
+epsilon <- 0.000000000005
+max_iter <- 10000
+secant(t0, t1, epsilon, max_iter)
+```
+
+### Part d)
+
+```{r}
+# Using optimize function ??
+my_function <- function(theta){
+  x <- c(-2.8, 3.4, 1.2, -0.3, -2.6)
+  n <- length(x)
+  y <- -n*log(pi) - sum(log(1+(x-theta)^2))
+  return(y)
+}
+
+optimize(my_function, c(-4, 4), maximum = TRUE)
+```
+# QUESTION 2:
+
+### part a)
+```{r}
+myvar <- function(x) {
+  n <- length(x)
+  sum_sq <- sum(x^2) # Define the sum of squares of x  
+  sum_x <- sum(x)  # Define the sum of x  
+  variance_x <- (sum_sq - (1/n) * sum_x^2) / (n - 1)
+  return(variance_x)
+}
+```
+
+### part b)
+```{r}
+# Define the given mean and variance
+given_mean <- 10^8
+given_variance <- 1
+
+# Calculate the standard deviation
+std_dev <- sqrt(given_variance)
+
+# Generate the vector x with 10,000 random numbers
+set.seed(123)
+n <- 10000
+x <- rnorm(n, given_mean, std_dev)
+```
+
+### part c)
+```{r}
+y1 <- c()
+for (i in 2:length(x)){
+  x_i <- x[1:i]
+  y_i <- myvar(x_i) - var(x_i)
+  y1 <- c(y1, y_i)
+}
+plot(y1, type = "p", col = "blue", pch = 19, xlab = "i", ylab = "Variance Difference", main = "Difference Plot with myvar Function")
+```
+
+
+### part d)
+```{r}
+sample_variance <- function(x){
+  result <- sum((x - mean(x))^2) / (n - 1)
+  return(result)
+}
+```
+
+```{r}
+y2 <- c()
+for (i in 2:length(x)){
+  x_i <- x[1:i]
+  y_i <- sample_variance(x_i) - var(x_i)
+  y2 <- c(y2, y_i)
+}
+
+plot(y2, type = "p", col = "red", pch = 19, xlab = "i", ylab = "Variance Difference", main = "Difference Plot with sample_variance Function")
+```
+
+Comparison for both functions:
+
+```{r}
+x_df <- seq(2, length(x), by = 1)
+df <- data.frame(x_df = x_df, 'myvar' = y1, 'sample_variance' = y2)
+
+ggplot(df, aes(x = x_df)) +
+  geom_point(aes(y = y1, color = "myvar"), size = 3) +
+  geom_point(aes(y = y2, color = "sample_variance"), size = 3) +
+  scale_color_manual(values = c("myvar" = "blue", "sample_variance" = "red"), name = "Functions") +
+  labs(
+    title = "Scatter Plot with Points and Legends",
+    x = "Sample Size",
+    y = "Variance"
+  ) +
+  theme_minimal()
+
+```
+
